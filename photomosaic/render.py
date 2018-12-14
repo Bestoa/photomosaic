@@ -1,4 +1,5 @@
 from PIL import Image, ImageStat
+from cachetools import LFUCache
 import numpy as np
 import os
 import random
@@ -11,28 +12,33 @@ class Render:
     FAST_PIXEL_BLEND = 1
     DIRECT_BLEND = 2
 
+    def _get_pixel_image_cached(self, name, size):
+
+        if name in self.LFU_pixel_image_dict:
+            return self.LFU_pixel_image_dict[name]
+        self.LFU_pixel_image_dict[name] = Image.open(name).resize(size)
+        return self.LFU_pixel_image_dict[name]
+
+
     def _get_next_pixel_image(self, size, brightness = 0):
 
         if self.fast_mode:
-            f = random.choice(self.pixel_img_source_name_list)
-            if f in self.pixel_img_source_dict:
-                return self.pixel_img_source_dict[f]
-            self.pixel_img_source_dict[f] = Image.open(f).resize(size)
-            return self.pixel_img_source_dict[f]
+            name = random.choice(self.pixel_img_source_name_list)
+            return self._get_pixel_image_cached(name, size)
         else:
             return self._get_next_pixel_image_with_brightness(size, brightness)
 
 
     def _get_next_pixel_image_with_brightness(self, size, brightness):
 
-        if len(self.pixel_img_source_with_brightness_list) == 0:
-            self._init_pixel_image_with_brightness_list(size)
-        return random.choice(self._get_candidate_img_list(brightness))[0]
+        name = random.choice(self._get_candidate_img_list(brightness))[0]
+        return self._get_pixel_image_cached(name, size)
 
 
     def _get_candidate_img_list(self, brightness):
+
         tmp_list = []
-        for items in self.pixel_img_source_with_brightness_list:
+        for items in self.pixel_img_source_name_list:
             tmp_list.append((items[0], abs(brightness - items[1])))
         tmp_list.sort(key = lambda x : x[1])
         end = 0
@@ -45,15 +51,8 @@ class Render:
         return tmp_list[:end]
 
 
-    def _init_pixel_image_with_brightness_list(self, size):
-
-        print('Init pixel image brightness list')
-        for f in self.pixel_img_source_name_list:
-            img = Image.open(f).resize(size)
-            self.pixel_img_source_with_brightness_list.append((img, ImageStat.Stat(img.convert('L')).mean[0]))
-
-
     def _get_pixel_brightness(self, pixel):
+
         return pixel[0] * 0.3 + pixel[1] * 0.59 + pixel[2] * 0.11
 
 
@@ -111,7 +110,7 @@ class Render:
         else:
             self.self_mode = False
             self.pixel_img_source_name_list = []
-            self.pixel_img_source_dict = {}
+            self.LFU_pixel_image_dict = LFUCache(maxsize = 512)
             for f in  os.listdir(path):
                 self.pixel_img_source_name_list.append(path + '/' + f)
 
@@ -129,8 +128,9 @@ class Render:
         if self.self_mode and not self.fast_mode:
             print("Can't use non-fast blend mode when pixel image is self")
             self.fast_mode = True
-        else:
-            self.pixel_img_source_with_brightness_list = []
+
+        if self.fast_mode == False:
+            self.pixel_img_source_name_list = list(map(lambda x : (x, ImageStat.Stat(Image.open(x).convert('L')).mean[0]), self.pixel_img_source_name_list))
 
         self.pixel_size = pixel_size
         self.scale = scale
