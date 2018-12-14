@@ -100,6 +100,10 @@ class Render:
         return Image.blend(target_img_source, target_img, self.blend_fact)
 
 
+    def blend(self):
+        return self._blend()
+
+
     def __init__(self, filename, mode,  pixel_size, scale, blend_fact, path):
 
         if path == None:
@@ -112,15 +116,15 @@ class Render:
                 self.pixel_img_source_name_list.append(path + '/' + f)
 
         self.img = Image.open(filename)
-        self.blend = lambda : None
+        self._blend = lambda : None
         self.fast_mode = True
         if mode == Render.PIXEL_BLEND:
-            self.blend = self._pixel_blend_mode
+            self._blend = self._pixel_blend_mode
             self.fast_mode = False
         elif mode == Render.FAST_PIXEL_BLEND:
-            self.blend = self._pixel_blend_mode
+            self._blend = self._pixel_blend_mode
         elif mode == Render.DIRECT_BLEND:
-            self.blend = self._direct_blend_mode
+            self._blend = self._direct_blend_mode
 
         if self.self_mode and not self.fast_mode:
             print("Can't use non-fast blend mode when pixel image is self")
