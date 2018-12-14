@@ -8,9 +8,9 @@ import random
 class Render:
 
 
-    PIXEL_BLEND = 0
-    FAST_PIXEL_BLEND = 1
-    DIRECT_BLEND = 2
+    FAST_MODE = 1
+    PIXEL_BLEND = 1 << 1
+    DIRECT_BLEND = 1 << 2
 
     def _get_pixel_image_cached(self, name, size):
 
@@ -53,7 +53,16 @@ class Render:
 
     def _get_pixel_brightness(self, pixel):
 
+        if self.fast_mode:
+            return 0
         return pixel[0] * 0.3 + pixel[1] * 0.59 + pixel[2] * 0.11
+
+
+    def _get_area_brightness(self, img, area):
+
+        if self.fast_mode:
+            return 0
+        return ImageStat.Stat(img.crop(area).convert('L')).mean[0]
 
 
     def _pixel_blend_mode(self):
@@ -91,9 +100,10 @@ class Render:
         while x < target_h:
             y = 0
             while y < target_w:
+                target_area = (y * self.pixel_size, x * self.pixel_size, (y + 1) * self.pixel_size, (x + 1) * self.pixel_size)
                 if not self.self_mode:
-                    pixel_img = self._get_next_pixel_image((self.pixel_size, self.pixel_size))
-                target_img_source.paste(pixel_img, (y * self.pixel_size, x * self.pixel_size, (y + 1) * self.pixel_size, (x + 1) * self.pixel_size))
+                    pixel_img = self._get_next_pixel_image((self.pixel_size, self.pixel_size), self._get_area_brightness(target_img, target_area))
+                target_img_source.paste(pixel_img, target_area)
                 y += 1
             x += 1
         return Image.blend(target_img_source, target_img, self.blend_fact)
@@ -116,14 +126,14 @@ class Render:
 
         self.img = Image.open(filename)
         self._blend = lambda : None
-        self.fast_mode = True
-        if mode == Render.PIXEL_BLEND:
+        self.fast_mode = False
+        if mode & Render.PIXEL_BLEND:
             self._blend = self._pixel_blend_mode
-            self.fast_mode = False
-        elif mode == Render.FAST_PIXEL_BLEND:
-            self._blend = self._pixel_blend_mode
-        elif mode == Render.DIRECT_BLEND:
+        elif mode & Render.DIRECT_BLEND:
             self._blend = self._direct_blend_mode
+
+        if mode & Render.FAST_MODE:
+            self.fast_mode = True
 
         if self.self_mode and not self.fast_mode:
             print("Can't use non-fast blend mode when pixel image is self")
