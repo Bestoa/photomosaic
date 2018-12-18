@@ -9,8 +9,9 @@ class Render:
 
 
     FAST_MODE = 1
-    PIXEL_BLEND = 1 << 1
-    DIRECT_BLEND = 1 << 2
+    NON_SQUARE_PIXEL = 1 << 1
+    PIXEL_BLEND = 1 << 16
+    DIRECT_BLEND = 1 << 17
 
     def _get_pixel_image_cached(self, name, size):
 
@@ -67,42 +68,52 @@ class Render:
 
     def _pixel_blend_mode(self):
 
-        if self.self_mode:
-            pixel_img = self.img.resize((self.pixel_size, self.pixel_size))
+        if self.non_square_pixel:
+            pixel_w, pixel_h = self.pixel_size
+        else:
+            pixel_w, pixel_h = self.pixel_size, self.pixel_size
 
-        target_pixel_img = self.img.resize((int(self.img.width * self.scale / self.pixel_size), int(self.img.height * self.scale / self.pixel_size)), resample = Image.LANCZOS)
+        if self.self_mode:
+            pixel_img = self.img.resize((pixel_w, pixel_h))
+
+        target_pixel_img = self.img.resize((int(self.img.width * self.scale / pixel_w), int(self.img.height * self.scale / pixel_h)), resample = Image.LANCZOS)
         target_pixel_img_arr = np.asarray(target_pixel_img)
-        target_img = Image.new('RGB', (target_pixel_img.width * self.pixel_size, target_pixel_img.height * self.pixel_size), (0, 0, 0))
+        target_img = Image.new('RGB', (target_pixel_img.width * pixel_w, target_pixel_img.height * pixel_h), (0, 0, 0))
 
         for h_offset, line in enumerate(target_pixel_img_arr):
             for w_offset, pixel in enumerate(line):
-                pixel_color_img = Image.new('RGB', (self.pixel_size, self.pixel_size), tuple(pixel))
+                pixel_color_img = Image.new('RGB', (pixel_w, pixel_h), tuple(pixel))
                 if not self.self_mode:
-                    pixel_img = self._get_next_pixel_image((self.pixel_size, self.pixel_size), self._get_pixel_brightness(pixel))
+                    pixel_img = self._get_next_pixel_image((pixel_w, pixel_h), self._get_pixel_brightness(pixel))
                 final_pixel_img = Image.blend(pixel_img, pixel_color_img, self.blend_fact)
-                target_img.paste(final_pixel_img, (w_offset  * self.pixel_size, h_offset * self.pixel_size, (w_offset + 1) * self.pixel_size, (h_offset + 1) * self.pixel_size))
+                target_img.paste(final_pixel_img, (w_offset  * pixel_w, h_offset * pixel_h, (w_offset + 1) * pixel_w, (h_offset + 1) * pixel_h))
 
         return target_img
 
 
     def _direct_blend_mode(self):
 
+        if self.non_square_pixel:
+            pixel_w, pixel_h = self.pixel_size
+        else:
+            pixel_w, pixel_h = self.pixel_size, self.pixel_size
+
         if self.self_mode:
-            pixel_img = self.img.resize((self.pixel_size, self.pixel_size))
+            pixel_img = self.img.resize((pixel_w, pixel_h))
 
-        target_w = int(self.img.width / self.pixel_size) * self.scale
-        target_h = int(self.img.height / self.pixel_size) * self.scale
+        target_w = int(self.img.width / pixel_w) * self.scale
+        target_h = int(self.img.height / pixel_h) * self.scale
 
-        target_img  = self.img.resize((target_w * self.pixel_size, target_h * self.pixel_size), resample = Image.LANCZOS)
-        target_img_source = Image.new('RGB', (target_w * self.pixel_size, target_h * self.pixel_size), (0, 0, 0))
+        target_img  = self.img.resize((target_w * pixel_w, target_h * pixel_h), resample = Image.LANCZOS)
+        target_img_source = Image.new('RGB', (target_w * pixel_w, target_h * pixel_h), (0, 0, 0))
 
         x, y = 0, 0
         while x < target_h:
             y = 0
             while y < target_w:
-                target_area = (y * self.pixel_size, x * self.pixel_size, (y + 1) * self.pixel_size, (x + 1) * self.pixel_size)
+                target_area = (y * pixel_w, x * pixel_h, (y + 1) * pixel_w, (x + 1) * pixel_h)
                 if not self.self_mode:
-                    pixel_img = self._get_next_pixel_image((self.pixel_size, self.pixel_size), self._get_area_brightness(target_img, target_area))
+                    pixel_img = self._get_next_pixel_image((pixel_w, pixel_h), self._get_area_brightness(target_img, target_area))
                 target_img_source.paste(pixel_img, target_area)
                 y += 1
             x += 1
@@ -127,6 +138,8 @@ class Render:
         self.img = Image.open(filename)
         self._blend = lambda : None
         self.fast_mode = False
+        self.non_square_pixel = False
+
         if mode & Render.PIXEL_BLEND:
             self._blend = self._pixel_blend_mode
         elif mode & Render.DIRECT_BLEND:
@@ -134,6 +147,8 @@ class Render:
 
         if mode & Render.FAST_MODE:
             self.fast_mode = True
+        if mode & Render.NON_SQUARE_PIXEL:
+            self.non_square_pixel = True
 
         if self.self_mode and not self.fast_mode:
             print("Can't use non-fast blend mode when pixel image is self")
