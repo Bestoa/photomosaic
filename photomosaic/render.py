@@ -1,5 +1,5 @@
 from PIL import Image, ImageStat
-from cachetools import LFUCache
+from cachetools import LRUCache
 import numpy as np
 import os
 import random
@@ -15,10 +15,10 @@ class Render:
 
     def _get_pixel_image_cached(self, name, size):
 
-        if name in self.LFU_pixel_image_dict:
-            return self.LFU_pixel_image_dict[name]
-        self.LFU_pixel_image_dict[name] = Image.open(name).resize(size)
-        return self.LFU_pixel_image_dict[name]
+        if name in self.LRU_pixel_image_dict:
+            return self.LRU_pixel_image_dict[name]
+        self.LRU_pixel_image_dict[name] = Image.open(name).resize(size)
+        return self.LRU_pixel_image_dict[name]
 
 
     def _get_next_pixel_image(self, size, brightness = 0):
@@ -130,7 +130,7 @@ class Render:
         else:
             self.self_mode = False
             self.pixel_img_source_name_list = []
-            self.LFU_pixel_image_dict = LFUCache(maxsize = 512)
+            self.LRU_pixel_image_dict = LRUCache(maxsize = 512)
             for f in  os.listdir(path):
                 self.pixel_img_source_name_list.append(path + '/' + f)
 
