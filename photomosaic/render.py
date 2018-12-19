@@ -32,24 +32,23 @@ class Render:
 
     def _get_next_pixel_image_with_brightness(self, size, brightness):
 
-        name = random.choice(self._get_candidate_img_list(brightness))[0]
+        name = random.choice(self._get_candidate_img_list(brightness))
         return self._get_pixel_image_cached(name, size)
 
 
     def _get_candidate_img_list(self, brightness):
 
-        tmp_list = []
+        candidate_img_list = []
+        backup_img_list = []
         for items in self.pixel_img_source_name_list:
-            tmp_list.append((items[0], abs(brightness - items[1])))
-        tmp_list.sort(key = lambda x : x[1])
-        end = 0
-        for index, items in enumerate(tmp_list):
-            if items[1] > 20:
-                end = index
-                break
-        if end < 5:
-            end = 5
-        return tmp_list[:end]
+            brightness_delta = abs(brightness - items[1])
+            if brightness_delta < 25:
+                candidate_img_list.append(items[0])
+            else:
+                backup_img_list.append((items[0], brightness_delta))
+        if len(candidate_img_list) == 0:
+            candidate_img_list.append(min(backup_img_list, key = lambda x : x[1])[0])
+        return candidate_img_list
 
 
     def _get_pixel_brightness(self, pixel):
