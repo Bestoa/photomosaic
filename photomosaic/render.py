@@ -9,7 +9,6 @@ class Render:
 
 
     FAST_MODE = 1
-    NON_SQUARE_PIXEL = 1 << 1
     PIXEL_BLEND = 1 << 16
     DIRECT_BLEND = 1 << 17
 
@@ -67,10 +66,7 @@ class Render:
 
     def _pixel_blend_mode(self):
 
-        if self.non_square_pixel:
-            pixel_w, pixel_h = self.pixel_size
-        else:
-            pixel_w, pixel_h = self.pixel_size, self.pixel_size
+        pixel_w, pixel_h = self.pixel_size
 
         if self.self_mode:
             pixel_img = self.img.resize((pixel_w, pixel_h))
@@ -92,10 +88,7 @@ class Render:
 
     def _direct_blend_mode(self):
 
-        if self.non_square_pixel:
-            pixel_w, pixel_h = self.pixel_size
-        else:
-            pixel_w, pixel_h = self.pixel_size, self.pixel_size
+        pixel_w, pixel_h = self.pixel_size
 
         if self.self_mode:
             pixel_img = self.img.resize((pixel_w, pixel_h))
@@ -123,7 +116,7 @@ class Render:
         return self._blend()
 
 
-    def __init__(self, filename, mode,  pixel_size, scale, blend_fact, path):
+    def __init__(self, img, mode, pixel_size, scale, blend_fact, path):
 
         if path == None:
             self.self_mode = True
@@ -134,10 +127,9 @@ class Render:
             for f in  os.listdir(path):
                 self.pixel_img_source_name_list.append(path + '/' + f)
 
-        self.img = Image.open(filename)
+        self.img = img
         self._blend = lambda : None
         self.fast_mode = False
-        self.non_square_pixel = False
 
         if mode & Render.PIXEL_BLEND:
             self._blend = self._pixel_blend_mode
@@ -146,8 +138,6 @@ class Render:
 
         if mode & Render.FAST_MODE:
             self.fast_mode = True
-        if mode & Render.NON_SQUARE_PIXEL:
-            self.non_square_pixel = True
 
         if self.self_mode and not self.fast_mode:
             print("Can't use non-fast blend mode when pixel image is self")
