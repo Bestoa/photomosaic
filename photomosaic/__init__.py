@@ -29,7 +29,7 @@ _target_w_h_max = 256
 
 def _caculate_size(max_v, min_v):
 
-    if max_v < _target_w_h_max and min_v > _target_w_h_min:
+    if max_v <= _target_w_h_max and min_v >= _target_w_h_min:
         return max_v, min_v
     elif max_v > _target_w_h_max:
         min_v = _target_w_h_max / max_v * min_v
