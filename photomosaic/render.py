@@ -22,7 +22,7 @@ class Render:
 
     def _get_next_pixel_image(self, size, brightness = 0):
 
-        if self.fast_mode:
+        if self.config['fast mode']:
             name = random.choice(self.pixel_img_source_name_list)
             return self._get_pixel_image_cached(name, size)
         else:
@@ -52,35 +52,35 @@ class Render:
 
     def _get_pixel_brightness(self, pixel):
 
-        if self.fast_mode:
+        if self.config['fast mode']:
             return 0
         return pixel[0] * 0.3 + pixel[1] * 0.59 + pixel[2] * 0.11
 
 
     def _get_area_brightness(self, img, area):
 
-        if self.fast_mode:
+        if self.config['fast mode']:
             return 0
         return ImageStat.Stat(img.crop(area).convert('L')).mean[0]
 
 
     def _pixel_blend_mode(self):
 
-        pixel_w, pixel_h = self.pixel_size
+        pixel_w, pixel_h = self.config['pixel size']
 
-        if self.self_mode:
+        if self.config['self mode']:
             pixel_img = self.img.resize((pixel_w, pixel_h))
 
-        target_pixel_img = self.img.resize((int(self.img.width * self.scale / pixel_w), int(self.img.height * self.scale / pixel_h)), resample = Image.LANCZOS)
+        target_pixel_img = self.img.resize((int(self.img.width * self.config['scale'] / pixel_w), int(self.img.height * self.config['scale'] / pixel_h)), resample = Image.LANCZOS)
         target_pixel_img_arr = np.asarray(target_pixel_img)
         target_img = Image.new('RGB', (target_pixel_img.width * pixel_w, target_pixel_img.height * pixel_h), (0, 0, 0))
 
         for h_offset, line in enumerate(target_pixel_img_arr):
             for w_offset, pixel in enumerate(line):
                 pixel_color_img = Image.new('RGB', (pixel_w, pixel_h), tuple(pixel))
-                if not self.self_mode:
+                if not self.config['self mode']:
                     pixel_img = self._get_next_pixel_image((pixel_w, pixel_h), self._get_pixel_brightness(pixel))
-                final_pixel_img = Image.blend(pixel_img, pixel_color_img, self.blend_fact)
+                final_pixel_img = Image.blend(pixel_img, pixel_color_img, self.config['blend fact'])
                 target_img.paste(final_pixel_img, (w_offset  * pixel_w, h_offset * pixel_h, (w_offset + 1) * pixel_w, (h_offset + 1) * pixel_h))
 
         return target_img
@@ -88,13 +88,13 @@ class Render:
 
     def _direct_blend_mode(self):
 
-        pixel_w, pixel_h = self.pixel_size
+        pixel_w, pixel_h = self.config['pixel size']
 
-        if self.self_mode:
+        if self.config['self mode']:
             pixel_img = self.img.resize((pixel_w, pixel_h))
 
-        target_w = int(self.img.width / pixel_w) * self.scale
-        target_h = int(self.img.height / pixel_h) * self.scale
+        target_w = int(self.img.width / pixel_w) * self.config['scale']
+        target_h = int(self.img.height / pixel_h) * self.config['scale']
 
         target_img  = self.img.resize((target_w * pixel_w, target_h * pixel_h), resample = Image.LANCZOS)
         target_img_source = Image.new('RGB', (target_w * pixel_w, target_h * pixel_h), (0, 0, 0))
@@ -104,12 +104,12 @@ class Render:
             y = 0
             while y < target_w:
                 target_area = (y * pixel_w, x * pixel_h, (y + 1) * pixel_w, (x + 1) * pixel_h)
-                if not self.self_mode:
+                if not self.config['self mode']:
                     pixel_img = self._get_next_pixel_image((pixel_w, pixel_h), self._get_area_brightness(target_img, target_area))
                 target_img_source.paste(pixel_img, target_area)
                 y += 1
             x += 1
-        return Image.blend(target_img_source, target_img, self.blend_fact)
+        return Image.blend(target_img_source, target_img, self.config['blend fact'])
 
 
     def blend(self):
@@ -118,10 +118,11 @@ class Render:
 
     def __init__(self, img, mode, pixel_size, scale, blend_fact, path):
 
+        self.config = {}
         if path == None:
-            self.self_mode = True
+            self.config['self mode'] = True
         else:
-            self.self_mode = False
+            self.config['self mode'] = False
             self.pixel_img_source_name_list = []
             self.LRU_pixel_image_dict = LRUCache(maxsize = 512)
             for f in  os.listdir(path):
@@ -129,24 +130,27 @@ class Render:
 
         self.img = img
         self._blend = lambda : None
-        self.fast_mode = False
+        self.config['fast mode'] = False
 
         if mode & Render.PIXEL_BLEND:
+            self.config['blend mode'] = 'Pixel'
             self._blend = self._pixel_blend_mode
         elif mode & Render.DIRECT_BLEND:
+            self.config['blend mode'] = 'Direct'
             self._blend = self._direct_blend_mode
 
         if mode & Render.FAST_MODE:
-            self.fast_mode = True
+            self.config['fast mode'] = True
 
-        if self.self_mode and not self.fast_mode:
+        if self.config['self mode'] and not self.config['fast mode']:
             print("Can't use non-fast blend mode when pixel image is self")
-            self.fast_mode = True
+            self.config['fast mode'] = True
 
-        if self.fast_mode == False:
+        if self.config['fast mode'] == False:
             self.pixel_img_source_name_list = list(map(lambda x : (x, ImageStat.Stat(Image.open(x).convert('L')).mean[0]), self.pixel_img_source_name_list))
 
-        self.pixel_size = pixel_size
-        self.scale = scale
-        self.blend_fact = blend_fact
+        self.config['pixel size'] = pixel_size
+        self.config['scale'] = scale
+        self.config['blend fact'] = blend_fact
+        print('config = ', self.config)
 
