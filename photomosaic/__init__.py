@@ -3,15 +3,15 @@ from PIL import Image
 
 __VERSION__ = '0.0.1'
 
-def gen_image(filename, mode = Render.PIXEL_BLEND, pixel_size = (8, 8), scale = 1, blend_fact = 0.75, path = None):
+def gen_image(filename_or_fp, mode = Render.PIXEL_BLEND, pixel_size = (8, 8), scale = 1, blend_fact = 0.75, resource_path = None):
 
-    img = Image.open(filename)
-    return Render(img, mode, pixel_size, scale, blend_fact, path).blend()
+    img = Image.open(filename_or_fp)
+    return Render(img, mode, pixel_size, scale, blend_fact, resource_path).blend()
 
-def auto_gen_image(filename, pixel_size, path):
+def auto_gen_image(filename_or_fp, pixel_size, resource_path):
 
     pixel_w, pixel_h = pixel_size
-    img = Image.open(filename)
+    img = Image.open(filename_or_fp)
     uniform_width = img.width / pixel_w
     uniform_height = img.height /pixel_h
 
@@ -21,7 +21,7 @@ def auto_gen_image(filename, pixel_size, path):
         uniform_height, uniform_width = _caculate_size(uniform_height, uniform_width)
 
     scale = uniform_width * pixel_w / img.width
-    return Render(img, Render.PIXEL_BLEND, pixel_size, scale, 0.75, path).blend()
+    return Render(img, Render.PIXEL_BLEND, pixel_size, scale, 0.75, resource_path).blend()
 
 
 _target_w_h_min = 64

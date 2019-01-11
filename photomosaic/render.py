@@ -116,17 +116,17 @@ class Render:
         return self._blend()
 
 
-    def __init__(self, img, mode, pixel_size, scale, blend_fact, path):
+    def __init__(self, img, mode, pixel_size, scale, blend_fact, resource_path):
 
         self.config = {}
-        if path == None:
+        if resource_path == None:
             self.config['self mode'] = True
         else:
             self.config['self mode'] = False
             self.pixel_img_source_name_list = []
             self.LRU_pixel_image_dict = LRUCache(maxsize = 512)
-            for f in  os.listdir(path):
-                self.pixel_img_source_name_list.append(path + '/' + f)
+            for f in  os.listdir(resource_path):
+                self.pixel_img_source_name_list.append(os.path.join(resource_path, f))
 
         self.img = img
         self._blend = lambda : None
