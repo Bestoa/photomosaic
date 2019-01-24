@@ -11,6 +11,7 @@ class Render:
     FAST_MODE = 1
     PIXEL_BLEND = 1 << 16
     DIRECT_BLEND = 1 << 17
+    SIMPLE_BLEND = 1 << 18
 
     def _get_pixel_image_cached(self, name, size):
 
@@ -112,6 +113,16 @@ class Render:
         return Image.blend(target_img_source, target_img, self.config['blend fact'])
 
 
+    def _simple_blend_mode(self):
+
+        pixel_w, pixel_h = self.config['pixel size']
+        source_w = int(self.img.width / pixel_w)
+        source_h = int(self.img.height / pixel_h)
+        target_w = int(source_w * pixel_w * self.config['scale'])
+        target_h = int(source_h * pixel_h * self.config['scale'])
+        return  self.img.resize((source_w, source_h)).resize((target_w, target_h))
+
+
     def blend(self):
         return self._blend()
 
@@ -138,6 +149,9 @@ class Render:
         elif mode & Render.DIRECT_BLEND:
             self.config['blend mode'] = 'Direct'
             self._blend = self._direct_blend_mode
+        elif mode & Render.SIMPLE_BLEND:
+            self.config['blend_mode'] = 'Simple'
+            self._blend = self._simple_blend_mode
 
         if mode & Render.FAST_MODE:
             self.config['fast mode'] = True
